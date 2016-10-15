@@ -256,7 +256,7 @@ next:
 			seg->dhp = dhp;
 			seg->mapoffset = offset;
 			seg->maplen = len;
-			list_add_tail(&seg->head, &obj->seg_list, (caddr_t)seg);
+			list_add_tail(&seg->head, &obj->seg_list);
 			mutex_unlock(&dev->page_fault_lock);
 		}
 	}
@@ -287,8 +287,7 @@ drm_gem_unmap(devmap_cookie_t dhp, void *pvtp, offset_t off, size_t len,
 		return;
 	}
 
-	list_for_each_entry_safe(entry, temp, struct gem_map_list,
-	    &obj->seg_list, head) {
+	list_for_each_entry_safe(entry, temp, &obj->seg_list, head) {
 		(void) devmap_unload(entry->dhp, entry->mapoffset,
 		    entry->maplen);
 		list_del(&entry->head);
@@ -789,7 +788,7 @@ drm_core_findmap(struct drm_device *dev, unsigned int token)
 {
 	struct drm_map_list *_entry;
 
-	list_for_each_entry(_entry, struct drm_map_list, &dev->maplist, head) {
+	list_for_each_entry(_entry, &dev->maplist, head) {
 		if (_entry->user_token == token)
 			return (_entry->map);
 	}
