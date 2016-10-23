@@ -78,13 +78,13 @@ driver name=agptarget perms="* 0644 root sys" \
     alias=pci8086,7120 \
     alias=pci8086,7122 \
     alias=pci8086,7124
-file path=kernel/drv/$(ARCH64)/$(ARCH64)_gart group=sys
-file path=kernel/drv/$(ARCH64)/agpgart group=sys
-file path=kernel/drv/$(ARCH64)/agptarget group=sys
-file path=kernel/drv/$(ARCH64)_gart group=sys
-file path=kernel/drv/agpgart group=sys
-file path=kernel/drv/agpgart.conf group=sys
-file path=kernel/drv/agptarget group=sys
+file path=kernel/drv/$(ARCH64)/$(ARCH64)_gart group=sys mode=0755
+file path=kernel/drv/$(ARCH64)/agpgart group=sys mode=0755
+file path=kernel/drv/$(ARCH64)/agptarget group=sys mode=0755
+file path=kernel/drv/$(ARCH64)_gart group=sys mode=0755
+file path=kernel/drv/agpgart group=sys mode=0755
+file path=kernel/drv/agpgart.conf group=sys mode=0644
+file path=kernel/drv/agptarget group=sys mode=0755
 file path=kernel/misc/$(ARCH64)/agpmaster group=sys mode=0755
 file path=kernel/misc/agpmaster group=sys mode=0755
 file path=usr/share/man/man7i/agpgart_io.7i
