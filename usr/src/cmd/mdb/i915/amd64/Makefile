@@ -10,10 +10,20 @@
 #
 
 #
-# Copyright 2016 <XXX Contributor>
+# Copyright 2016 Joyent, Inc.
 #
 
-include $(SRC)/Makefile.master
-SUBDIRS =		ia32
-$(BUILD64)SUBDIRS += 	$(MACH64)
-include ../Makefile.subdirs
+MODULE = i915.so
+MDBTGT = kvm
+
+MODSRCS = i915.c
+
+include ../../../Makefile.cmd
+include ../../../Makefile.cmd.64
+include ../../Makefile.amd64
+include ../../Makefile.module
+
+CPPFLAGS += -I$(SRC)/uts/intel/io/i915
+CPPFLAGS += -I$(SRC)/uts/common/io/drm
+CPPFLAGS += -I$(SRC)/uts/common/drm
+CPPFLAGS += -I$(SRC)/uts/common
