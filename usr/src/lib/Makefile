@@ -48,7 +48,9 @@ SUBDIRS= \
 	libfoo	\
 	$($(MACH)_SUBDIRS)
 
-i386_SUBDIRS=
+i386_SUBDIRS= \
+	libdrm .WAIT \
+	libkms
 
 sparc_SUBDIRS=
 
