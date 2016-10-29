@@ -1,0 +1,29 @@
+#
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
+#
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# http://www.illumos.org/license/CDDL.
+#
+
+#
+# Copyright 2016 Gordon W. Ross
+#
+
+# See $SRC/lib/libdrm
+LIBDRM_VERS=2.4.67
+LIBDRM_CMN_DIR=$(SRC)/common/libdrm/libdrm-2.4.67
+
+ROOTLIBDIR =	$(ROOT)/usr/lib/xorg
+ROOTLIBDIR64 =	$(ROOT)/usr/lib/xorg/$(MACH64)
+
+CPPFLAGS +=	-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+CPPFLAGS +=	-DHAVE_SYS_MKDEV_H
+CPPFLAGS +=	-DHAVE_ALLOCA_H
+
+CPPFLAGS +=	-I$(SRC)/uts/common \
+		-I$(SRC)/uts/common/drm \
+		-I$(LIBDRM_CMN_DIR)/include/drm
