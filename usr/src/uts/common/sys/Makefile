@@ -45,7 +45,8 @@ i386_HDRS=			\
 sparc_HDRS=
 
 # Generated headers
-GENHDRS=
+GENHDRS= \
+	gfx_private.h
 
 # Normal headers
 CHKHDRS= \
@@ -100,5 +101,10 @@ clean:
 clobber:	clean
 
 check:	$(CHECKHDRS)
+
+# Temporary hack to get gfx_private.h copied here,
+# so uts Makefiles can find it as expected.
+gfx_private.h :
+	(cd ../../intel/gfxp_hack && make install_h)
 
 FRC:
