@@ -367,7 +367,7 @@ XSTRCONST=		-xstrconst
 
 #
 # turn warnings into errors (C)
-CERRWARN = -errtags=yes -errwarn=%all
+CERRWARN = -errtags=yes # -errwarn=%all
 CERRWARN += -erroff=E_EMPTY_TRANSLATION_UNIT
 CERRWARN += -erroff=E_STATEMENT_NOT_REACHED
 
@@ -392,7 +392,7 @@ CCERRWARN=		-xwe
 # C99 mode
 C99_ENABLE=	-xc99=%all
 C99_DISABLE=	-xc99=%none
-C99MODE=	$(C99_DISABLE)
+C99MODE=	$(C99_ENABLE)
 C99LMODE=	$(C99MODE:-xc99%=-Xc99%)
 
 # In most places, assignments to these macros should be appended with +=
