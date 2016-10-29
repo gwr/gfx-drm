@@ -170,7 +170,9 @@ PKGMOG_DEFINES= \
 	$(PKGMACH)_ONLY= \
 	ARCH=$(PKGMACH) \
 	ARCH32=$($(PKGMACH)_ARCH32) \
+	MACH32=$($(PKGMACH)_ARCH32) \
 	ARCH64=$($(PKGMACH)_ARCH64) \
+	MACH64=$($(PKGMACH)_ARCH64) \
 	PKGVERS_COMPONENT=$(PKGVERS_COMPONENT) \
 	PKGVERS_BUILTON=$(PKGVERS_BUILTON) \
 	PKGVERS_BRANCH=$(PKGVERS_BRANCH) \
@@ -486,7 +488,7 @@ $(REPOS:%=$(PKGDEST)/repo.%):
 
 $(PDIR)/%.mog: manifests/%.mf
 	@print "Processing manifest $(<F)"
-	@env PKGFMT_OUTPUT=v1 pkgfmt -c $<
+	#@env PKGFMT_OUTPUT=v1 pkgfmt -c $<
 	$(PKGDEBUG)$(RM) $(@) $(@:%.mog=%) $(@:%.mog=%.nodepend) \
 		$(@:%.mog=%.lics) $(PDIR)/$(@F:%.mog=%).metadata.* $(@).vars
 	$(PKGDEBUG)$(PKGMOGRIFY) $(PKGMOG_VERBOSE) $(PM_INC:%= -I %) \
