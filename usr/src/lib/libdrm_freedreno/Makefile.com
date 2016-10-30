@@ -52,6 +52,8 @@ PCS =		$(LIBRARY:.a=.pc)
 MAPFILES=
 SRCDIR =	$(LIBDRM_CMN_DIR)/freedreno
 
+CPPFLAGS +=	-DHAVE_FREEDRENO_KGSL
+
 CPPFLAGS +=	-I$(LIBDRM_CMN_DIR)/freedreno
 CPPFLAGS +=	-I$(LIBDRM_CMN_DIR)
 CPPFLAGS +=	-I/usr/include/pixman-1
