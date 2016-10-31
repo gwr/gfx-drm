@@ -42,7 +42,8 @@ dir path=kernel/misc group=sys
 dir path=kernel/misc/$(ARCH64) group=sys
 dir path=usr/share/man
 dir path=usr/share/man/man7i
-driver name=$(ARCH64)_gart alias=pci1022,1103 perms="* 0644 root sys"
+# Note: the name of this driver _really_is_ amd64_gart...
+driver name=amd64_gart alias=pci1022,1103 perms="* 0644 root sys"
 driver name=agpgart perms="* 0644 root sys"
 driver name=agptarget perms="* 0644 root sys" \
     alias=pci1022,7454 \
@@ -69,6 +70,7 @@ driver name=agptarget perms="* 0644 root sys" \
     alias=pci8086,2e20 \
     alias=pci8086,2e30 \
     alias=pci8086,2e40 \
+    alias=pci8086,3340 \
     alias=pci8086,3575 \
     alias=pci8086,3580 \
     alias=pci8086,40 \
