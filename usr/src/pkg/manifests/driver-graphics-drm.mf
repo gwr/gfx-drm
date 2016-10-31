@@ -56,6 +56,7 @@ driver name=i915 perms="* 0644 root sys" \
     alias=pci8086,106 \
     alias=pci8086,10a \
     alias=pci8086,112 \
+    alias=pci8086,1132 \
     alias=pci8086,116 \
     alias=pci8086,122 \
     alias=pci8086,126 \
@@ -68,6 +69,7 @@ driver name=i915 perms="* 0644 root sys" \
     alias=pci8086,2562 \
     alias=pci8086,2572 \
     alias=pci8086,2582 \
+    alias=pci8086,258a \
     alias=pci8086,2592 \
     alias=pci8086,2772 \
     alias=pci8086,27a2 \
@@ -82,12 +84,15 @@ driver name=i915 perms="* 0644 root sys" \
     alias=pci8086,2a02 \
     alias=pci8086,2a12 \
     alias=pci8086,2a42 \
-    alias=pci8086,2e02.8086.2e02 \
+    alias=pci8086,2e02 \
     alias=pci8086,2e12 \
     alias=pci8086,2e22 \
     alias=pci8086,2e32 \
     alias=pci8086,2e42 \
+    alias=pci8086,2e92 \
+    alias=pci8086,3577 \
     alias=pci8086,3582 \
+    alias=pci8086,358e \
     alias=pci8086,402 \
     alias=pci8086,406 \
     alias=pci8086,40a \
@@ -105,6 +110,9 @@ driver name=i915 perms="* 0644 root sys" \
     alias=pci8086,42b \
     alias=pci8086,42e \
     alias=pci8086,46 \
+    alias=pci8086,7121 \
+    alias=pci8086,7123 \
+    alias=pci8086,7125 \
     alias=pci8086,a001 \
     alias=pci8086,a011 \
     alias=pci8086,a02 \
