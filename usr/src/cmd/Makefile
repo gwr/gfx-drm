@@ -31,7 +31,8 @@ include ../Makefile.master
 
 FIRST_SUBDIRS=
 
-COMMON_SUBDIRS=		\
+COMMON_SUBDIRS=	\
+	devfsadm \
 	foo \
 	fs.d \
 	mdb
