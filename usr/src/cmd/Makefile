@@ -37,7 +37,8 @@ COMMON_SUBDIRS=	\
 	fs.d \
 	mdb
 
-i386_SUBDIRS=
+i386_SUBDIRS= \
+	drm-tests
 
 sparc_SUBDIRS=
 
