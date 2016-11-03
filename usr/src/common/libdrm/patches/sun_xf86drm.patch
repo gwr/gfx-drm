@@ -1,0 +1,122 @@
+Use external functions for some Linux'isms.  Just easier.
+
+--- libdrm-2.4.67/xf86drm.h.~1~	Mon Oct 31 16:29:04 2016
++++ libdrm-2.4.67/xf86drm.h	Wed Nov  2 11:55:40 2016
+@@ -807,6 +807,17 @@
+ extern int drmGetDevices(drmDevicePtr devices[], int max_devices);
+ extern void drmFreeDevices(drmDevicePtr devices[], int count);
+ 
++#ifdef __sun
++extern int _sun_drm_get_major(void);
++extern char * _sun_drmGetMinorNameForFD(int fd, int type);
++extern int _sun_drmParseSubsystemType(int maj, int min);
++extern int _sun_drmParsePciBusInfo(int maj, int min, drmPciBusInfoPtr info);
++extern int _sun_drmParsePciDeviceInfo(const char *d_name,
++				 drmPciDeviceInfoPtr device);
++extern int _sun_drm_find_device(int min, char **pathp);
++extern int _sun_drm_get_pci_info(char *path, drmPciDeviceInfo *pcii);
++#endif /* __sun */
++
+ #if defined(__cplusplus)
+ }
+ #endif
+--- libdrm-2.4.67/xf86drm.c.~1~	Mon Oct 31 16:29:04 2016
++++ libdrm-2.4.67/xf86drm.c	Tue Nov  1 12:21:23 2016
+@@ -95,6 +95,11 @@
+ #endif
+ #endif /* __OpenBSD__ */
+ 
++#if defined(__sun)
++/* Device majors are dynamic. */
++#define DRM_MAJOR	(_sun_drm_get_major())
++#endif /* __sun */
++
+ #ifndef DRM_MAJOR
+ #define DRM_MAJOR 226		/* Linux */
+ #endif
+@@ -529,6 +534,7 @@
+     }
+ }
+ 
++#ifndef __sun /* Avoid "static unused" warning */
+ static const char *drmGetMinorName(int type)
+ {
+     switch (type) {
+@@ -542,6 +548,7 @@
+         return NULL;
+     }
+ }
++#endif /* __sun */
+ 
+ /**
+  * Open the device by bus ID.
+@@ -2760,6 +2767,10 @@
+ 	return 0;
+ }
+ 
++#ifdef __sun	/* OS-dependent */
++#define drmGetMinorNameForFD(fd, t) \
++	_sun_drmGetMinorNameForFD(fd, t)
++#else /* __sun */
+ static char *drmGetMinorNameForFD(int fd, int type)
+ {
+ #ifdef __linux__
+@@ -2821,6 +2832,7 @@
+ #endif
+ 	return NULL;
+ }
++#endif /* __sun */
+ 
+ char *drmGetPrimaryDeviceNameFromFd(int fd)
+ {
+@@ -2832,6 +2844,10 @@
+ 	return drmGetMinorNameForFD(fd, DRM_NODE_RENDER);
+ }
+ 
++#ifdef __sun	/* OS-dependent */
++#define drmParseSubsystemType(ma, mi) \
++	_sun_drmParseSubsystemType(ma, mi)
++#else /* __sun */
+ static int drmParseSubsystemType(int maj, int min)
+ {
+ #ifdef __linux__
+@@ -2858,7 +2874,12 @@
+     return -EINVAL;
+ #endif
+ }
++#endif /* __sun */
+ 
++#ifdef __sun	/* OS-dependent */
++#define drmParsePciBusInfo(ma, mi, inf)	\
++	_sun_drmParsePciBusInfo(ma, mi, inf)
++#else /* __sun */
+ static int drmParsePciBusInfo(int maj, int min, drmPciBusInfoPtr info)
+ {
+ #ifdef __linux__
+@@ -2900,6 +2921,7 @@
+     return -EINVAL;
+ #endif
+ }
++#endif /* __sun */
+ 
+ static int drmCompareBusInfo(drmDevicePtr a, drmDevicePtr b)
+ {
+@@ -2945,6 +2967,10 @@
+            3 /* lenght of the node number */;
+ }
+ 
++#ifdef __sun	/* OS-dependent */
++#define drmParsePciDeviceInfo(name, dip) \
++	_sun_drmParsePciDeviceInfo(name, dip)
++#else /* __sun */
+ static int drmParsePciDeviceInfo(const char *d_name,
+                                  drmPciDeviceInfoPtr device)
+ {
+@@ -2975,6 +3001,7 @@
+     return -EINVAL;
+ #endif
+ }
++#endif /* __sun */
+ 
+ void drmFreeDevice(drmDevicePtr *device)
+ {
