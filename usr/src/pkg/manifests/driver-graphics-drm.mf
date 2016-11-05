@@ -36,6 +36,7 @@ set name=info.classification \
     value=org.opensolaris.category.2008:Drivers/Display
 set name=info.upstream value="Direct Rendering Infrastructure (DRI) project"
 set name=info.upstream-url value=http://dri.freedesktop.org/
+set name=org.opensolaris.noincorp value=true
 set name=variant.arch value=i386
 dir path=kernel group=sys
 dir path=kernel/drv group=sys
@@ -162,13 +163,15 @@ driver name=i915 perms="* 0644 root sys" \
     alias=pci8086,d2a \
     alias=pci8086,d2b \
     alias=pci8086,d2e
-file path=kernel/drv/$(ARCH64)/i915 group=sys
-file path=kernel/drv/i915 group=sys
+file path=kernel/drv/$(ARCH64)/i915 group=sys mode=0755
+file path=kernel/drv/i915 group=sys mode=0755
 file path=kernel/kmdb/$(ARCH64)/i915 group=sys mode=0555
 file path=kernel/kmdb/i915 group=sys mode=0555
+file path=kernel/misc/$(ARCH64)/agpmaster group=sys mode=0755
 file path=kernel/misc/$(ARCH64)/drm group=sys mode=0755
-file path=kernel/misc/drm group=sys mode=0555
-file path=usr/lib/devfsadm/linkmod/SUNW_drm_link_i386.so group=sys
+file path=kernel/misc/agpmaster group=sys mode=0755
+file path=kernel/misc/drm group=sys mode=0755
+file path=usr/lib/devfsadm/linkmod/SUNW_drm_link_i386.so group=sys mode=0755
 file path=usr/lib/mdb/kvm/$(ARCH64)/i915.so group=sys mode=0555
 file path=usr/lib/mdb/kvm/i915.so group=sys mode=0555
 file path=usr/share/man/man7d/i915.7d
