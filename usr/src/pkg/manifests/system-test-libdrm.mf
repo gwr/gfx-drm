@@ -73,3 +73,4 @@ file path=opt/drm-tests/setversion
 file path=opt/drm-tests/tegra_openclose
 file path=opt/drm-tests/updatedraw
 file path=opt/drm-tests/vbltest
+depend fmri=pkg:/x11/library/libdrm type=require

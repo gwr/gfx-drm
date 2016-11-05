@@ -136,3 +136,5 @@ link path=usr/lib/xorg/libdrm_omap.so target=libdrm_omap.so.1
 link path=usr/lib/xorg/libdrm_radeon.so target=libdrm_radeon.so.1
 link path=usr/lib/xorg/libdrm_tegra.so target=libdrm_tegra.so.0
 link path=usr/lib/xorg/libkms.so target=libkms.so.1
+depend fmri=pkg:/driver/graphics/agpgart type=require
+depend fmri=pkg:/driver/graphics/drm type=require
