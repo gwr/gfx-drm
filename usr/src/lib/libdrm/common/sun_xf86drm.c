@@ -144,9 +144,15 @@ int _sun_drmParsePciDeviceInfo(const char *d_name,
 {
 	struct stat sbuf;
 	int err, maj, min;
+	char dev_path[256];
 	char *path = NULL;
 
-	if (stat(d_name, &sbuf))
+	if (d_name[0] == '/')
+		strlcpy(dev_path, d_name, sizeof (dev_path));
+	else
+		snprintf(dev_path, sizeof (dev_path),
+			 DRM_DIR_NAME "/%s", d_name);
+	if (stat(dev_path, &sbuf))
 		return -errno;
 
 	maj = major(sbuf.st_rdev);
