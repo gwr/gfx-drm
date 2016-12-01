@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* i915_dma.c -- DMA support for the I915 -*- linux-c -*-
@@ -1006,6 +1006,18 @@ static int i915_getparam(DRM_IOCTL_ARGS)
 	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
 		value = 1;
 		break;
+
+	/*
+	 * These should be better supported in the next version, but
+	 * are being requested in this one.  so provide useful values.
+	 */
+	case I915_PARAM_CMD_PARSER_VERSION:
+		value = 1;
+		break;
+	case I915_PARAM_HAS_EXEC_SOFTPIN:
+		value = 0;
+		break;
+
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
@@ -1761,10 +1773,10 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file_priv)
 
 #ifdef _MULTI_DATAMODEL
 #define I915_IOCTL_DEF(ioctl, _func, _flags, _copyin32, _copyout32) \
-	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {.cmd = ioctl, .flags = _flags, .func = _func, .copyin32 = _copyin32, .copyout32 = _copyout32}
+	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {.cmd = ioctl, .flags = _flags, .func = _func, .copyin32 = _copyin32, .copyout32 = _copyout32, .name = #_func}
 #else
 #define I915_IOCTL_DEF(ioctl, _func, _flags, _copyin32, _copyout32) \
-	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {.cmd = ioctl, .flags = _flags, .func = _func, .copyin32 = NULL, .copyout32 = NULL}
+	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {.cmd = ioctl, .flags = _flags, .func = _func, .copyin32 = NULL, .copyout32 = NULL, .name = #_func}
 #endif
 
 struct drm_ioctl_desc i915_ioctls[] = {
