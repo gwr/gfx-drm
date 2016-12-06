@@ -28,6 +28,9 @@
 #include "drm.h"
 #include "drmP.h"
 #include "i915_drm.h"
+#include "i915_io32.h"
+
+#ifdef _MULTI_DATAMODEL
 
 int 
 copyin32_i915_batchbuffer(void * dest, void * src)
@@ -107,3 +110,5 @@ copyin32_i915_mem_alloc(void *dest, void *src)
 
 	return (0);
 }
+
+#endif	/* _MULTI_DATAMODEL */

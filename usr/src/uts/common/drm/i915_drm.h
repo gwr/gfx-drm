@@ -302,15 +302,6 @@ typedef struct drm_i915_batchbuffer {
 	struct drm_clip_rect *cliprects;	/* pointer to userspace cliprects */
 } drm_i915_batchbuffer_t;
 
-typedef struct drm_i915_batchbuffer32 {
-	int start;		/* agp offset */
-	int used;		/* nr bytes in use */
-	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
-	int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO */
-	int num_cliprects;	/* mulitpass with multiple cliprects? */
-	caddr32_t cliprects;	/* pointer to userspace cliprects */
-} drm_i915_batchbuffer32_t;
-
 /* As above, but pass a pointer to userspace buffer which can be
  * validated by the kernel prior to sending to hardware.
  */
@@ -323,24 +314,11 @@ typedef struct _drm_i915_cmdbuffer {
 	struct drm_clip_rect *cliprects;	/* pointer to userspace cliprects */
 } drm_i915_cmdbuffer_t;
 
-typedef struct drm_i915_cmdbuffer32 {
-	caddr32_t buf;	/* pointer to userspace command buffer */
-	int sz;			/* nr bytes in buf */
-	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
-	int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO */
-	int num_cliprects;	/* mulitpass with multiple cliprects? */
-	caddr32_t cliprects;	/* pointer to userspace cliprects */
-} drm_i915_cmdbuffer32_t;
-
 /* Userspace can request & wait on irq's:
  */
 typedef struct drm_i915_irq_emit {
 	int *irq_seq;
 } drm_i915_irq_emit_t;
-
-typedef struct drm_i915_irq_emit32 {
-	caddr32_t irq_seq;
-} drm_i915_irq_emit32_t;
 
 typedef struct drm_i915_irq_wait {
 	int irq_seq;
@@ -397,11 +375,6 @@ typedef struct drm_i915_getparam {
 	int *value;
 } drm_i915_getparam_t;
 
-typedef struct drm_i915_getparam32 {
-	int param;
-	caddr32_t value;
-} drm_i915_getparam32_t;
-
 /* Ioctl to set kernel params:
  */
 #define I915_SETPARAM_USE_MI_BATCHBUFFER_START            1
@@ -424,13 +397,6 @@ typedef struct drm_i915_mem_alloc {
 	int size;
 	int *region_offset;	/* offset from start of fb or agp */
 } drm_i915_mem_alloc_t;
-
-typedef struct drm_i915_mem_alloc32 {
-	int region;
-	int alignment;
-	int size;
-	caddr32_t region_offset;	/* offset from start of fb or agp */
-} drm_i915_mem_alloc32_t;
 
 typedef struct drm_i915_mem_free {
 	int region;
