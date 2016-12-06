@@ -23,6 +23,7 @@
 
 /*
  * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright 2016 Gordon W. Ross
  */
 
 #include "drm.h"
@@ -383,4 +384,84 @@ copyout32_drm_scatter_gather(void *dest, void *src)
 	return (0);
 }
 
-#endif
+int
+copyin32_drm_agp_mode(void *dest, void *src)
+{
+	struct drm_agp_mode *dest64 = dest;
+	struct drm_agp_mode_32 dest32;
+
+	DRM_COPYFROM_WITH_RETURN(&dest32, (void *)src, sizeof(dest32));
+
+	dest64->mode = dest32.mode;
+
+	return (0);
+}
+
+int
+copyin32_drm_agp_buffer(void * dest, void * src)
+{
+	struct drm_agp_buffer *dest64 = dest;
+	struct drm_agp_buffer32 dest32;
+
+	DRM_COPYFROM_WITH_RETURN(&dest32, (void *)src, sizeof(dest32));
+
+	dest64->size = dest32.size;
+	dest64->handle = dest32.handle;
+	dest64->type = dest32.type;
+	dest64->physical = dest32.physical;
+
+	return (0);
+}
+
+int
+copyout32_drm_agp_buffer(void * dest, void * src)
+{
+	struct drm_agp_buffer *src64 = src;
+	struct drm_agp_buffer32 src32;
+
+	src32.size = (uint32_t)src64->size;
+	src32.handle = (uint32_t)src64->handle;
+	src32.type = (uint32_t)src64->size;
+	src32.physical = (uint32_t)src64->handle;
+
+	DRM_COPYTO_WITH_RETURN((void *)dest, &src32, sizeof(src32));
+
+	return (0);
+}
+
+int
+copyin32_drm_agp_binding(void * dest, void * src)
+{
+	struct drm_agp_binding *dest64 = dest;
+	struct drm_agp_binding_32 dest32;
+
+	DRM_COPYFROM_WITH_RETURN(&dest32, (void *)src, sizeof(dest32));
+
+	dest64->handle = dest32.handle;
+	dest64->offset = dest32.offset;
+
+	return (0);
+}
+
+int
+copyout32_drm_agp_info(void * dest, void * src)
+{
+	struct drm_agp_info *src64 = src;
+	struct drm_agp_info_32 src32;
+
+	src32.agp_version_major = (int32_t)src64->agp_version_major;
+	src32.agp_version_minor = (int32_t)src64->agp_version_minor;
+	src32.mode = (uint32_t)src64->mode;
+	src32.aperture_base = (uint32_t)src64->aperture_base;
+	src32.aperture_size = (uint32_t)src64->aperture_size;
+	src32.memory_allowed = (uint32_t)src64->memory_allowed;
+	src32.memory_used = (uint32_t)src64->memory_used;
+	src32.id_vendor = (uint16_t)src64->id_vendor;
+	src32.id_device = (uint16_t)src64->id_device;
+
+	DRM_COPYTO_WITH_RETURN((void *)dest, &src32, sizeof(src32));
+
+	return (0);
+}
+
+#endif	/* _MULTI_DATAMODEL */

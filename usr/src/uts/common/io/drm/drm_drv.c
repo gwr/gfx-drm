@@ -100,12 +100,12 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 
 	DRM_IOCTL_DEF(DRM_IOCTL_AGP_ACQUIRE, drm_agp_acquire_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, NULL, NULL),
 	DRM_IOCTL_DEF(DRM_IOCTL_AGP_RELEASE, drm_agp_release_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, NULL, NULL),
-	DRM_IOCTL_DEF(DRM_IOCTL_AGP_ENABLE, drm_agp_enable_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, NULL, NULL),
-	DRM_IOCTL_DEF(DRM_IOCTL_AGP_INFO, drm_agp_info_ioctl, DRM_AUTH, NULL, NULL),
-	DRM_IOCTL_DEF(DRM_IOCTL_AGP_ALLOC, drm_agp_alloc_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, NULL, NULL),
-	DRM_IOCTL_DEF(DRM_IOCTL_AGP_FREE, drm_agp_free_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, NULL, NULL),
-	DRM_IOCTL_DEF(DRM_IOCTL_AGP_BIND, drm_agp_bind_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, NULL, NULL),
-	DRM_IOCTL_DEF(DRM_IOCTL_AGP_UNBIND, drm_agp_unbind_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, NULL, NULL),
+	DRM_IOCTL_DEF(DRM_IOCTL_AGP_ENABLE, drm_agp_enable_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, copyin32_drm_agp_mode, NULL),
+	DRM_IOCTL_DEF(DRM_IOCTL_AGP_INFO, drm_agp_info_ioctl, DRM_AUTH, NULL, copyout32_drm_agp_info),
+	DRM_IOCTL_DEF(DRM_IOCTL_AGP_ALLOC, drm_agp_alloc_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, copyin32_drm_agp_buffer, copyout32_drm_agp_buffer),
+	DRM_IOCTL_DEF(DRM_IOCTL_AGP_FREE, drm_agp_free_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, copyin32_drm_agp_buffer, NULL),
+	DRM_IOCTL_DEF(DRM_IOCTL_AGP_BIND, drm_agp_bind_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, copyin32_drm_agp_binding, NULL),
+	DRM_IOCTL_DEF(DRM_IOCTL_AGP_UNBIND, drm_agp_unbind_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, copyin32_drm_agp_binding, NULL),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_SG_ALLOC, drm_sg_alloc_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, copyin32_drm_scatter_gather, copyout32_drm_scatter_gather),
 	DRM_IOCTL_DEF(DRM_IOCTL_SG_FREE, drm_sg_free, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY, copyin32_drm_scatter_gather, NULL),
@@ -375,15 +375,23 @@ int drm_ioctl(dev_t dev_id, struct drm_file *file_priv,
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END) &&
 	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
-		usize = asize = _IOC_SIZE(cmd);
-		cmd = ioctl->cmd;
 	}
 	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE)) {
 		ioctl = &drm_ioctls[nr];
-		cmd = ioctl->cmd;
-		usize = asize = _IOC_SIZE(cmd);
 	} else
 		goto err_i1;
+
+	/*
+	 * Make sure we use the caller-specified size for copyin and copyout.
+	 * Copyout is dangerous if the caller is 32-bit and we don't have a
+	 * copyout conversion function.  The in-kernel struct may be larger,
+	 * and a copyout of the (kernel size) struct could overwrite whatever
+	 * follows the 32-bit struct in user space.  The cmd value is taken
+	 * from our table because callers sometimes pass the wrong flags for
+	 * IOC_IN, IOC_OUT etc.
+	 */
+	usize = asize = _IOC_SIZE(cmd);
+	cmd = ioctl->cmd;
 
 	/* Do not trust userspace, use our own definition */
 	func = ioctl->func;
@@ -400,6 +408,9 @@ int drm_ioctl(dev_t dev_id, struct drm_file *file_priv,
 		   (!(ioctl->flags & DRM_CONTROL_ALLOW) && (file_priv->minor->type == DRM_MINOR_CONTROL))) {
 		retcode = -EACCES;
 	} else {
+#ifdef	_MULTI_DATAMODEL
+		uint_t dmodel = ddi_model_convert_from(mode & FMODELS);
+#endif
 		if (cmd & (IOC_IN | IOC_OUT)) {
 			if (asize <= sizeof(stack_kdata)) {
 				kdata = stack_kdata;
@@ -416,15 +427,14 @@ int drm_ioctl(dev_t dev_id, struct drm_file *file_priv,
 
 		if (cmd & IOC_IN) {
 #ifdef	_MULTI_DATAMODEL
-			if (ddi_model_convert_from(mode & FMODELS) == DDI_MODEL_ILP32 && ioctl->copyin32) {
+			if (dmodel == DDI_MODEL_ILP32 && ioctl->copyin32 != NULL) {
 				if (ioctl->copyin32((void*)kdata, (void*)arg)) {
 					retcode = -EFAULT;
 					goto err_i1;
 				}
 			} else {
 #endif
-			if (DRM_COPY_FROM_USER(kdata, (void __user *)arg,
-					   _IOC_SIZE(cmd)) != 0) {
+			if (DRM_COPY_FROM_USER(kdata, (void __user *)arg, usize) != 0) {
 				retcode = -EFAULT;
 				goto err_i1;
 			}
@@ -436,15 +446,24 @@ int drm_ioctl(dev_t dev_id, struct drm_file *file_priv,
 
 		if (cmd & IOC_OUT) {
 #ifdef	_MULTI_DATAMODEL
-			if (ddi_model_convert_from(mode & FMODELS) == DDI_MODEL_ILP32 && ioctl->copyout32) {
+			/*
+			 * Some extra caution for IOC_OUT:  If there's a
+			 * copyin32 conversion function, then there should
+			 * also be a copyout32 conversion function.
+			 * Noise only.  We'll copyout usize bytes.
+			 */
+			if (dmodel == DDI_MODEL_ILP32 && ioctl->copyin32 != NULL &&
+			    ioctl->copyout32 == NULL) {
+				DRM_ERROR("ioctl cmd %d needs a copyout32", nr);
+			}
+			if (dmodel == DDI_MODEL_ILP32 && ioctl->copyout32 != NULL) {
 				if (ioctl->copyout32((void*)arg, (void*)kdata)) {
 					retcode = -EFAULT;
 					goto err_i1;
 				}
 			} else {
 #endif
-			if (DRM_COPY_TO_USER((void __user *)arg, kdata,
-					 _IOC_SIZE(cmd)) != 0)
+			if (DRM_COPY_TO_USER((void __user *)arg, kdata, usize) != 0)
 				retcode = -EFAULT;
 #ifdef	_MULTI_DATAMODEL
 			}

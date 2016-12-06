@@ -199,6 +199,11 @@ extern int copyin32_drm_wait_vblank(void * dest, void * src);
 extern int copyout32_drm_wait_vblank(void * dest, void * src);
 extern int copyin32_drm_scatter_gather(void * dest, void * src);
 extern int copyout32_drm_scatter_gather(void * dest, void * src);
+extern int copyin32_drm_agp_mode(void * dest, void * src);
+extern int copyin32_drm_agp_buffer(void * dest, void * src);
+extern int copyout32_drm_agp_buffer(void * dest, void * src);
+extern int copyin32_drm_agp_binding(void * dest, void * src);
+extern int copyout32_drm_agp_info(void * dest, void * src);
 
 #endif  /* _MULTI_DATAMODEL */
 
