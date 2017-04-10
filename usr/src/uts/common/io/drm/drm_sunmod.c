@@ -319,22 +319,42 @@ drm_gem_unmap(devmap_cookie_t dhc, void *pvt, offset_t off, size_t len,
 		devmap_cookie_t new_dhp1, void **new_pvtp1,
 		devmap_cookie_t new_dhp2, void **new_pvtp2)
 {
-	struct drm_device *dev;
-	devmap_handle_t *dhp;
+	devmap_handle_t *dhp = (devmap_handle_t *)dhc;
 	devmap_handle_t	*ndhp;
 	struct ddi_umem_cookie *cp;
 	struct ddi_umem_cookie *ncp;
 	struct drm_gem_object *obj;
+	struct drm_device *dev;
 	struct gem_map_list *entry, *temp;
+	boolean_t last_ref = B_FALSE;
 
-	_NOTE(ARGUNUSED(dhp, off, len))
+	_NOTE(ARGUNUSED(off, len))
 
 	obj = (struct drm_gem_object *)pvt;
 	if (obj == NULL)
 		return;
 
 	dev = obj->dev;
-	dhp = (devmap_handle_t *)dhc;
+
+	/*
+	 * Unload what drm_gem_map_access loaded.
+	 * XXX:  All of it? on every unmap?
+	 */
+	mutex_lock(&dev->page_fault_lock);
+	if (!list_empty(&obj->seg_list)) {
+		list_for_each_entry_safe(entry, temp, struct gem_map_list,
+		    &obj->seg_list, head) {
+			(void) devmap_unload(entry->dhp, entry->mapoffset,
+			    entry->maplen);
+			list_del(&entry->head);
+			drm_free(entry, sizeof (struct gem_map_list), DRM_MEM_MAPS);
+		}
+	}
+	mutex_unlock(&dev->page_fault_lock);
+
+	/*
+	 * Manage ddi_umem_cookie ref counts
+	 */
 
 	mutex_enter(&dev->struct_mutex);
 
@@ -356,36 +376,21 @@ drm_gem_unmap(devmap_cookie_t dhc, void *pvt, offset_t off, size_t len,
 	}
 
 	cp->cook_refcnt--;
-	if (cp->cook_refcnt != 0) {
-		mutex_exit(&dev->struct_mutex);
-		return;
+	if (cp->cook_refcnt == 0) {
+		last_ref = B_TRUE;
+		/* dhp->dh_cookie = NULL;	XXX -- correct? */
 	}
-	/* dhp->dh_cookie = NULL;  / * XXX -- correct? */
+
 	mutex_exit(&dev->struct_mutex);
 
-	/*
-	 * Last reference from this devmap object.
-	 * Unload what drm_gem_map_access loaded,
-	 * then drop our ref on the gem object.
-	 */
-	mutex_lock(&dev->page_fault_lock);
-	if (!list_empty(&obj->seg_list)) {
-		list_for_each_entry_safe(entry, temp, struct gem_map_list,
-		    &obj->seg_list, head) {
-			(void) devmap_unload(entry->dhp, entry->mapoffset,
-			    entry->maplen);
-			list_del(&entry->head);
-			drm_free(entry, sizeof (struct gem_map_list), DRM_MEM_MAPS);
-		}
+	if (last_ref) {
+		/*
+		 * FIXME: Would rather avoid drm_gem_object_free here
+		 * which would mean somehow arraning for the open
+		 * minor device to remain held open longer...
+		 */
+		drm_gem_object_unreference(obj);
 	}
-	mutex_unlock(&dev->page_fault_lock);
-
-	/*
-	 * FIXME: Would rather avoid drm_gem_object_free here
-	 * which would mean somehow arraning for the open
-	 * minor device to remain held open longer...
-	 */
-	drm_gem_object_unreference(obj);
 }
 
 static struct devmap_callback_ctl drm_gem_map_ops = {
