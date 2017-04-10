@@ -204,15 +204,18 @@ __find_local_map(struct drm_device *dev, offset_t offset)
 }
 
 static int
-drm_gem_map(devmap_cookie_t dhp, dev_t dev, uint_t flags, offset_t off,
+drm_gem_map(devmap_cookie_t dhc, dev_t dev, uint_t flags, offset_t off,
 		size_t len, void **pvtp)
 {
-	_NOTE(ARGUNUSED(dhp, flags, len))
+	_NOTE(ARGUNUSED(flags, len))
 
+	devmap_handle_t *dhp;
 	struct drm_device *drm_dev;
+	struct ddi_umem_cookie *cp;
 	struct drm_minor *minor;
 	int minor_id = DRM_DEV2MINOR(dev);
 	drm_local_map_t *map = NULL;
+	struct drm_gem_object *obj;
 
 	minor = idr_find(&drm_minors_idr, minor_id);
 	if (!minor)
@@ -230,9 +233,26 @@ drm_gem_map(devmap_cookie_t dhp, dev_t dev, uint_t flags, offset_t off,
 		return (DDI_EINVAL);
 	}
 
+	dhp = (devmap_handle_t *)dhc;
+	cp = (struct ddi_umem_cookie *)dhp->dh_cookie;
+#ifdef DEBUG
+	if (cp->cook_refcnt != 0)
+		DRM_DEBUG_DRIVER("cookie is not zero: %d\n", cp->cook_refcnt);
+#endif
+	cp->cook_refcnt = 1;
+
 	mutex_exit(&drm_dev->struct_mutex);
 
-	*pvtp = map->handle;
+	/*
+	 * First reference via this devmap cookie.
+	 * Take a ref. on the gem object, and
+	 * drop this ref in drm_gem_unmap when
+	 * last cookie ref is gone.
+	 */
+	obj = map->handle;
+	drm_gem_object_reference(obj);
+
+	*pvtp = obj;
 
 	return (DDI_SUCCESS);
 }
@@ -273,46 +293,106 @@ next:
 	return (DDI_SUCCESS);
 }
 
+static int
+drm_gem_dup(devmap_cookie_t dhc, void *pvt, devmap_cookie_t new_dhc,
+    void **new_pvtp)
+{
+	_NOTE(ARGUNUSED(new_dhc))
+
+	struct drm_gem_object *obj = pvt;
+	struct drm_device *dev = obj->dev;
+	devmap_handle_t *dhp;
+	struct ddi_umem_cookie *cp;
+
+	mutex_enter(&dev->struct_mutex);
+	dhp = (devmap_handle_t *)dhc;
+	cp = (struct ddi_umem_cookie *)dhp->dh_cookie;
+	cp->cook_refcnt++;
+	mutex_exit(&dev->struct_mutex);
+
+	*new_pvtp = obj;
+	return (0);
+}
+
 static void
-drm_gem_unmap(devmap_cookie_t dhp, void *pvtp, offset_t off, size_t len,
-		devmap_cookie_t new_dhp1, void **newpvtp1,
-		devmap_cookie_t new_dhp2, void **newpvtp2)
+drm_gem_unmap(devmap_cookie_t dhc, void *pvt, offset_t off, size_t len,
+		devmap_cookie_t new_dhp1, void **new_pvtp1,
+		devmap_cookie_t new_dhp2, void **new_pvtp2)
 {
 	struct drm_device *dev;
+	devmap_handle_t *dhp;
+	devmap_handle_t	*ndhp;
+	struct ddi_umem_cookie *cp;
+	struct ddi_umem_cookie *ncp;
 	struct drm_gem_object *obj;
 	struct gem_map_list *entry, *temp;
 
-	_NOTE(ARGUNUSED(dhp, pvtp, off, len, new_dhp1, newpvtp1))
-	_NOTE(ARGUNUSED(new_dhp2, newpvtp2))
+	_NOTE(ARGUNUSED(dhp, off, len))
 
-	obj = (struct drm_gem_object *)pvtp;
+	obj = (struct drm_gem_object *)pvt;
 	if (obj == NULL)
 		return;
 
 	dev = obj->dev;
+	dhp = (devmap_handle_t *)dhc;
 
-	mutex_lock(&dev->page_fault_lock);
-	if (list_empty(&obj->seg_list)) {
-		mutex_unlock(&dev->page_fault_lock);
+	mutex_enter(&dev->struct_mutex);
+
+	cp = (struct ddi_umem_cookie *)dhp->dh_cookie;
+	if (new_dhp1 != NULL) {
+		ndhp = (devmap_handle_t *)new_dhp1;
+		ncp = (struct ddi_umem_cookie *)ndhp->dh_cookie;
+		ncp->cook_refcnt++;
+		*new_pvtp1 = obj;
+		ASSERT(ncp == cp);
+	}
+
+	if (new_dhp2 != NULL) {
+		ndhp = (devmap_handle_t *)new_dhp2;
+		ncp = (struct ddi_umem_cookie *)ndhp->dh_cookie;
+		ncp->cook_refcnt++;
+		*new_pvtp2 = obj;
+		ASSERT(ncp == cp);
+	}
+
+	cp->cook_refcnt--;
+	if (cp->cook_refcnt != 0) {
+		mutex_exit(&dev->struct_mutex);
 		return;
 	}
+	/* dhp->dh_cookie = NULL;  / * XXX -- correct? */
+	mutex_exit(&dev->struct_mutex);
 
-	list_for_each_entry_safe(entry, temp, struct gem_map_list,
-	    &obj->seg_list, head) {
-		(void) devmap_unload(entry->dhp, entry->mapoffset,
-		    entry->maplen);
-		list_del(&entry->head);
-		drm_free(entry, sizeof (struct gem_map_list), DRM_MEM_MAPS);
+	/*
+	 * Last reference from this devmap object.
+	 * Unload what drm_gem_map_access loaded,
+	 * then drop our ref on the gem object.
+	 */
+	mutex_lock(&dev->page_fault_lock);
+	if (!list_empty(&obj->seg_list)) {
+		list_for_each_entry_safe(entry, temp, struct gem_map_list,
+		    &obj->seg_list, head) {
+			(void) devmap_unload(entry->dhp, entry->mapoffset,
+			    entry->maplen);
+			list_del(&entry->head);
+			drm_free(entry, sizeof (struct gem_map_list), DRM_MEM_MAPS);
+		}
 	}
-
 	mutex_unlock(&dev->page_fault_lock);
+
+	/*
+	 * FIXME: Would rather avoid drm_gem_object_free here
+	 * which would mean somehow arraning for the open
+	 * minor device to remain held open longer...
+	 */
+	drm_gem_object_unreference(obj);
 }
 
 static struct devmap_callback_ctl drm_gem_map_ops = {
 	DEVMAP_OPS_REV,		/* devmap_ops version number */
 	drm_gem_map,		/* devmap_ops map routine */
 	drm_gem_map_access,	/* devmap_ops access routine */
-	NULL,			/* devmap_ops dup routine */
+	drm_gem_dup,		/* devmap_ops dup routine */
 	drm_gem_unmap,		/* devmap_ops unmap routine */
 };
 

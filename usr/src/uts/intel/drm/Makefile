@@ -58,6 +58,8 @@ CERRWARN	+= -_gcc=-Wno-parentheses
 CERRWARN	+= -_gcc=-Wno-unused-function
 CERRWARN	+= -_gcc=-Wno-unused-variable
 
+LINTTAGS	+= -erroff=E_STATIC_UNUSED
+
 #
 #	Define targets
 #
