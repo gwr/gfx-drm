@@ -22,6 +22,8 @@
 ONBLD_TOOLS=/opt/onbld
 
 install: FRC
+	$(ONBLD_TOOLS)/bin/bldenv -d myenv.sh \
+	"cd usr/src/uts ; make install"
 	$(ONBLD_TOOLS)/bin/bldenv myenv.sh \
 	"cd usr/src ; make install"
 

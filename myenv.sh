@@ -47,7 +47,7 @@ export MACH="$(uname -p)"
 # where is the proto area etc.
 export ROOT="$CODEMGR_WS/proto/root_${MACH}"
 export SRC="$CODEMGR_WS/usr/src"
-export MULTI_PROTO="no"
+export MULTI_PROTO="yes"
 
 #
 # Build environment variables, including version info for mcs, etc.
