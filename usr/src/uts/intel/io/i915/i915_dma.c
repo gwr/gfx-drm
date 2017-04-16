@@ -1522,7 +1522,7 @@ out_mtrrfree:
 out_rmmap:
 	drm_ioremapfree(dev_priv->regs);
 put_bridge:
-free_priv:
+/* free_priv: */
 	kfree(dev_priv, sizeof(struct drm_i915_private));
 	return ret;
 }
