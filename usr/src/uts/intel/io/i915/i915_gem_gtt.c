@@ -713,13 +713,22 @@ int i915_gem_init_global_gtt(struct drm_device *dev)
 	return 0;
 }
 
+/*
+ * XXX: Should this use i915_gem_alloc_object?
+ * By allocating just sizeof (struct drm_gem_object)
+ * we don't have the i915 part after the "base"!
+ * Just to be safe against memory overwrite, let's
+ * allocate this with sizeof drm_i915_gem_object,
+ * even though we don't use the i915 part.
+ */
 int setup_scratch_page(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int gen;
 
 	/* setup scratch page */
-	dev_priv->gtt.scratch_page = kzalloc(sizeof(struct drm_gem_object), GFP_KERNEL);
+	dev_priv->gtt.scratch_page =
+	    kzalloc(sizeof(struct drm_i915_gem_object), GFP_KERNEL);
 	if (dev_priv->gtt.scratch_page == NULL) {
 		DRM_ERROR("setup_scratch_page: gem object init failed");
 		return (-ENOMEM);
@@ -731,7 +740,8 @@ int setup_scratch_page(struct drm_device *dev)
 		gen = INTEL_INFO(dev)->gen * 10;
 
 	if (drm_gem_object_init(dev, dev_priv->gtt.scratch_page, DRM_PAGE_SIZE, gen) != 0) {
-		kmem_free(dev_priv->gtt.scratch_page, sizeof (struct drm_gem_object));
+		kmem_free(dev_priv->gtt.scratch_page,
+		    sizeof (struct drm_i915_gem_object));
 		dev_priv->gtt.scratch_page = NULL;
 		DRM_ERROR("setup_scratch_page: gem object init failed");
 		return (-ENOMEM);
@@ -749,7 +759,9 @@ void teardown_scratch_page(struct drm_device *dev)
 		return;
 
 	drm_gem_object_release(dev_priv->gtt.scratch_page);
-	kmem_free(dev_priv->gtt.scratch_page, sizeof (struct drm_gem_object));
+	kmem_free(dev_priv->gtt.scratch_page,
+	    sizeof (struct drm_i915_gem_object));
+	dev_priv->gtt.scratch_page = NULL;
 }
 
 static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
