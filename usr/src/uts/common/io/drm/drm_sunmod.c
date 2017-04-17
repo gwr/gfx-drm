@@ -104,6 +104,7 @@ drm_devmap_map(devmap_cookie_t dhc, dev_t dev_id, uint_t flags,
 		DRM_DEBUG_DRIVER("cookie is not zero: %d\n", cp->cook_refcnt);
 #endif
 	cp->cook_refcnt = 1;
+	dev->devmap_cnt++;
 	mutex_exit(&dev->struct_mutex);
 
 	DRM_DEBUG_DRIVER("created mapping, handle: 0x%08x\n", dhp);
@@ -126,6 +127,7 @@ drm_devmap_dup(devmap_cookie_t dhc, void *pvtp, devmap_cookie_t new_dhc,
 	dhp = (devmap_handle_t *)dhc;
 	cp = (struct ddi_umem_cookie *)dhp->dh_cookie;
 	cp->cook_refcnt++;
+	dev->devmap_cnt++;
 	mutex_exit(&dev->struct_mutex);
 
 	*new_pvtp = dev;
@@ -156,6 +158,7 @@ drm_devmap_unmap(devmap_cookie_t dhc, void *pvtp, offset_t off, size_t len,
 		ndhp = (devmap_handle_t *)new_dhp1;
 		ncp = (struct ddi_umem_cookie *)ndhp->dh_cookie;
 		ncp->cook_refcnt++;
+		dev->devmap_cnt++;
 		*new_pvtp1 = dev;
 		ASSERT(ncp == cp);
 	}
@@ -165,9 +168,13 @@ drm_devmap_unmap(devmap_cookie_t dhc, void *pvtp, offset_t off, size_t len,
 		ndhp = (devmap_handle_t *)new_dhp2;
 		ncp = (struct ddi_umem_cookie *)ndhp->dh_cookie;
 		ncp->cook_refcnt++;
+		dev->devmap_cnt++;
 		*new_pvtp2 = dev;
 		ASSERT(ncp == cp);
 	}
+
+	ASSERT(dev->devmap_cnt > 0);
+	dev->devmap_cnt--;
 
 	ASSERT(cp->cook_refcnt > 0);
 	cp->cook_refcnt--;
@@ -204,14 +211,16 @@ __find_local_map(struct drm_device *dev, offset_t offset)
 }
 
 static int
-drm_gem_map(devmap_cookie_t dhp, dev_t dev, uint_t flags, offset_t off,
-		size_t len, void **pvtp)
+drm_gem_map(devmap_cookie_t dhc, dev_t dev_id, uint_t flags,
+    offset_t off, size_t len, void **pvtp)
 {
-	_NOTE(ARGUNUSED(dhp, flags, len))
+	_NOTE(ARGUNUSED(flags, len))
 
-	struct drm_device *drm_dev;
+	devmap_handle_t *dhp;
+	struct ddi_umem_cookie *cp;
+	struct drm_device *dev;
 	struct drm_minor *minor;
-	int minor_id = DRM_DEV2MINOR(dev);
+	int minor_id = DRM_DEV2MINOR(dev_id);
 	drm_local_map_t *map = NULL;
 
 	minor = idr_find(&drm_minors_idr, minor_id);
@@ -220,17 +229,26 @@ drm_gem_map(devmap_cookie_t dhp, dev_t dev, uint_t flags, offset_t off,
 	if (!minor->dev)
 		return (ENODEV);
 
-	drm_dev = minor->dev;
+	dev = minor->dev;
 
-	mutex_enter(&drm_dev->struct_mutex);
-	map = __find_local_map(drm_dev, off);
+	mutex_enter(&dev->struct_mutex);
+	map = __find_local_map(dev, off);
 	if (!map) {
-		mutex_exit(&drm_dev->struct_mutex);
+		mutex_exit(&dev->struct_mutex);
 		*pvtp = NULL;
 		return (DDI_EINVAL);
 	}
 
-	mutex_exit(&drm_dev->struct_mutex);
+	dhp = (devmap_handle_t *)dhc;
+	cp = (struct ddi_umem_cookie *)dhp->dh_cookie;
+#ifdef DEBUG
+	if (cp->cook_refcnt != 0)
+		DRM_DEBUG_DRIVER("cookie is not zero: %d\n", cp->cook_refcnt);
+#endif
+	cp->cook_refcnt = 1;
+	dev->gemmap_cnt++;
+
+	mutex_exit(&dev->struct_mutex);
 
 	*pvtp = map->handle;
 
@@ -274,38 +292,77 @@ next:
 }
 
 static void
-drm_gem_unmap(devmap_cookie_t dhp, void *pvtp, offset_t off, size_t len,
-		devmap_cookie_t new_dhp1, void **newpvtp1,
-		devmap_cookie_t new_dhp2, void **newpvtp2)
+drm_gem_unmap(devmap_cookie_t dhc, void *pvt, offset_t off, size_t len,
+		devmap_cookie_t new_dhp1, void **new_pvtp1,
+		devmap_cookie_t new_dhp2, void **new_pvtp2)
 {
+	devmap_handle_t *dhp = (devmap_handle_t *)dhc;
+	devmap_handle_t	*ndhp;
+	struct ddi_umem_cookie *cp;
+	struct ddi_umem_cookie *ncp;
 	struct drm_device *dev;
 	struct drm_gem_object *obj;
 	struct gem_map_list *entry, *temp;
 
-	_NOTE(ARGUNUSED(dhp, pvtp, off, len, new_dhp1, newpvtp1))
-	_NOTE(ARGUNUSED(new_dhp2, newpvtp2))
+	_NOTE(ARGUNUSED(off, len))
 
-	obj = (struct drm_gem_object *)pvtp;
+	obj = (struct drm_gem_object *)pvt;
 	if (obj == NULL)
 		return;
 
 	dev = obj->dev;
 
+	/*
+	 * Unload what drm_gem_map_access loaded.
+	 */
 	mutex_lock(&dev->page_fault_lock);
-	if (list_empty(&obj->seg_list)) {
-		mutex_unlock(&dev->page_fault_lock);
-		return;
+	if (!list_empty(&obj->seg_list)) {
+		list_for_each_entry_safe(entry, temp, struct gem_map_list,
+		    &obj->seg_list, head) {
+			(void) devmap_unload(entry->dhp, entry->mapoffset,
+			    entry->maplen);
+			list_del(&entry->head);
+			drm_free(entry, sizeof (struct gem_map_list), DRM_MEM_MAPS);
+		}
 	}
-
-	list_for_each_entry_safe(entry, temp, struct gem_map_list,
-	    &obj->seg_list, head) {
-		(void) devmap_unload(entry->dhp, entry->mapoffset,
-		    entry->maplen);
-		list_del(&entry->head);
-		drm_free(entry, sizeof (struct gem_map_list), DRM_MEM_MAPS);
-	}
-
 	mutex_unlock(&dev->page_fault_lock);
+
+	/*
+	 * Manage ddi_umem_cookie ref counts
+	 */
+
+	mutex_enter(&dev->struct_mutex);
+
+	cp = (struct ddi_umem_cookie *)dhp->dh_cookie;
+	if (new_dhp1 != NULL) {
+		ndhp = (devmap_handle_t *)new_dhp1;
+		ncp = (struct ddi_umem_cookie *)ndhp->dh_cookie;
+		ncp->cook_refcnt++;
+		dev->gemmap_cnt++;
+		*new_pvtp1 = obj;
+		ASSERT(ncp == cp);
+	}
+
+	if (new_dhp2 != NULL) {
+		ndhp = (devmap_handle_t *)new_dhp2;
+		ncp = (struct ddi_umem_cookie *)ndhp->dh_cookie;
+		ncp->cook_refcnt++;
+		dev->gemmap_cnt++;
+		*new_pvtp2 = obj;
+		ASSERT(ncp == cp);
+	}
+
+	ASSERT(dev->gemmap_cnt > 0);
+	dev->gemmap_cnt--;
+
+	ASSERT(cp->cook_refcnt > 0);
+	cp->cook_refcnt--;
+	if (cp->cook_refcnt == 0) {
+		DRM_DEBUG_DRIVER("last gem_unmap of dh_cookie:0x%08x\n", cp);
+		/* FIXME: What cleanup is needed here? */
+	}
+
+	mutex_exit(&dev->struct_mutex);
 }
 
 static struct devmap_callback_ctl drm_gem_map_ops = {

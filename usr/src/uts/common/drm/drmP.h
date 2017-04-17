@@ -1227,6 +1227,11 @@ struct drm_device {
 	 * FMA capabilities
 	 */
 	int	drm_fm_cap;
+
+	/* Debugging: mmap counts */
+	int	devmap_cnt; /* drm_devmap_map, _unmap */
+	int	gemmap_cnt; /* drm_gem_map, _unmap */
+
 	/* OSOL End */
 };
 

@@ -166,6 +166,11 @@ int drm_lastclose(struct drm_device * dev)
 {
 	DRM_DEBUG("\n");
 
+	if (dev->devmap_cnt != 0)
+		panic("devmap_cnt");
+	if (dev->gemmap_cnt != 0)
+		panic("gemmap_cnt");
+
 	if (dev->driver->lastclose)
 		dev->driver->lastclose(dev);
 	DRM_DEBUG("driver lastclose completed\n");
