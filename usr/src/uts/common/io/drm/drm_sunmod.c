@@ -291,6 +291,28 @@ next:
 	return (DDI_SUCCESS);
 }
 
+static int
+drm_gem_dup(devmap_cookie_t dhc, void *pvt, devmap_cookie_t new_dhc,
+    void **new_pvtp)
+{
+	_NOTE(ARGUNUSED(new_dhc))
+
+	struct drm_gem_object *obj = pvt;
+	struct drm_device *dev = obj->dev;
+	devmap_handle_t *dhp;
+	struct ddi_umem_cookie *cp;
+
+	mutex_enter(&dev->struct_mutex);
+	dhp = (devmap_handle_t *)dhc;
+	cp = (struct ddi_umem_cookie *)dhp->dh_cookie;
+	cp->cook_refcnt++;
+	dev->gemmap_cnt++;
+	mutex_exit(&dev->struct_mutex);
+
+	*new_pvtp = obj;
+	return (0);
+}
+
 static void
 drm_gem_unmap(devmap_cookie_t dhc, void *pvt, offset_t off, size_t len,
 		devmap_cookie_t new_dhp1, void **new_pvtp1,
@@ -369,7 +391,7 @@ static struct devmap_callback_ctl drm_gem_map_ops = {
 	DEVMAP_OPS_REV,		/* devmap_ops version number */
 	drm_gem_map,		/* devmap_ops map routine */
 	drm_gem_map_access,	/* devmap_ops access routine */
-	NULL,			/* devmap_ops dup routine */
+	drm_gem_dup,		/* devmap_ops dup routine */
 	drm_gem_unmap,		/* devmap_ops unmap routine */
 };
 
